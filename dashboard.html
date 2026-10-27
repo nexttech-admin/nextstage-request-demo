@@ -45,6 +45,10 @@
   .panel input { font: 600 1.1rem ui-monospace, Menlo, monospace; letter-spacing: .3em; width: 150px; padding: 8px 10px; border: 1.5px solid var(--line);
                  border-radius: 10px; background: var(--bg); color: var(--ink); text-align: center; }
   .panel input::placeholder { letter-spacing: normal; font: 400 .95rem "IBM Plex Sans Thai", sans-serif; }
+  .log { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: .86rem; }
+  .log th, .log td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .log th { color: var(--muted); font-weight: 600; background: var(--bg); }
+  .log tr:last-child td { border-bottom: 0; }
   .owner { display: inline-block; background: var(--navy-soft); color: var(--navy); border-radius: 99px; padding: 1px 10px; font-weight: 600; font-size: .85rem; }
   .empty { color: var(--muted); background: var(--card); border: 1px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; }
   .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: 90vw; padding: 10px 16px; border-radius: 10px; font-weight: 500; }
@@ -91,6 +95,9 @@
   <div id="pending"></div>
   <h2>รับเรื่องแล้ว (ล่าสุด)</h2>
   <div id="claimed"></div>
+  <h2>บันทึกการใช้งาน (ล่าสุด)</h2>
+  <div style="overflow-x:auto"><table class="log"><thead><tr><th>เวลา</th><th>ผู้ใช้ (ตาม PIN)</th><th>การกระทำ</th><th>รายละเอียด</th></tr></thead>
+    <tbody id="activity"></tbody></table></div>
   <p class="meta" id="updated"></p>
 </div>
 <div class="toast hidden" id="toast"></div>
@@ -153,6 +160,10 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwRXze4N4hz0iUGQ5LWHZnl_6
     });
     $('#claimed').innerHTML = res.claimed.length ? res.claimed.map(function (x) { return card(x, false); }).join('')
       : '<div class="empty">ยังไม่มีงานที่รับเรื่อง</div>';
+    var act = res.activity || [];
+    $('#activity').innerHTML = act.length ? act.map(function (a) {
+      return '<tr><td>' + esc(a.at) + '</td><td>' + esc(a.user) + '</td><td>' + esc(a.action) + '</td><td>' + esc(a.detail) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="meta">ยังไม่มีบันทึก</td></tr>';
     $('#updated').textContent = 'อัปเดตล่าสุด ' + new Date().toLocaleTimeString('th-TH') + ' · รีเฟรชอัตโนมัติทุก 1 นาที';
   }
   function load(quiet) {
@@ -169,7 +180,7 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwRXze4N4hz0iUGQ5LWHZnl_6
     var v = $('#pin').value.trim();
     if (!/^\d{4,8}$/.test(v)) return showLogin('กรุณาใส่ PIN เป็นตัวเลข');
     var btn = this; btn.disabled = true; $('#loginErr').textContent = '';
-    call('dashboardList', [v]).then(function (res) {
+    call('dashboardList', [v, true]).then(function (res) {
       pin = v; try { localStorage.setItem(KEY, v); } catch (e) {}
       render(res);
     }).catch(function (e) { showLogin(e.message || String(e)); }).then(function () { btn.disabled = false; });
@@ -189,7 +200,11 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwRXze4N4hz0iUGQ5LWHZnl_6
       $('#cancelPin').click(); toast('ok', 'เปลี่ยน PIN เรียบร้อย ครั้งหน้าใช้ PIN ใหม่');
     }).catch(function (e) { $('#pinErr').textContent = e.message || String(e); }).then(function () { btn.disabled = false; });
   };
-  $('#logout').onclick = function () { pin = ''; try { localStorage.removeItem(KEY); } catch (e) {} showLogin(); };
+  $('#logout').onclick = function () {
+    var old = pin; pin = ''; try { localStorage.removeItem(KEY); } catch (e) {}
+    if (old) call('dashboardLogout', [old]).catch(function () {});
+    showLogin();
+  };
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-claim]');
     if (!b) return;
