@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>คิวงานรอรับเรื่อง (DEMO)</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #f5f4f8; --card: #fff; --ink: #1d1b24; --muted: #6b6878; --line: #e3e0ea; --navy: #1b3c87; --navy-soft: #e8eefb;
+          --yellow: #f6c343; --cream: #fff7e0; --ok: #1e6b3a; --ok-soft: #e6f4ea; --err: #b3261e; --err-soft: #fdecea; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #141218; --card: #1e1b24; --ink: #ece9f2; --muted: #a39fae; --line: #34303d;
+      --navy: #9db7f5; --navy-soft: #1f2a44; --cream: #3a3016; --ok: #8fd6a4; --ok-soft: #1b3324; --err: #f2b8b5; --err-soft: #3b1f1d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 "IBM Plex Sans Thai", system-ui, sans-serif; }
+  .demo { background: #fff4dc; color: #8a5a00; text-align: center; padding: 6px 16px; font-size: 13px; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  h1 { font-size: 1.4rem; margin: 0; }
+  .who { color: var(--muted); font-size: .92rem; }
+  button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 7px 14px; }
+  button.primary { background: var(--navy); border-color: var(--navy); color: #fff; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.primary { color: #141218; } }
+  button:disabled { opacity: .55; cursor: wait; }
+  .login { max-width: 360px; margin: 10vh auto 0; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; text-align: center; }
+  .login input { width: 100%; font: 600 1.6rem/1 ui-monospace, Menlo, monospace; letter-spacing: .5em; text-align: center; padding: 12px;
+                 border: 1.5px solid var(--line); border-radius: 12px; margin: 14px 0; background: var(--bg); color: var(--ink); }
+  .login button { width: 100%; padding: 11px; }
+  h2 { font-size: 1.05rem; margin: 22px 0 10px; display: flex; align-items: center; gap: 8px; }
+  .count { background: var(--yellow); color: #1d1b24; border-radius: 99px; padding: 0 9px; font-size: .85rem; }
+  .card { background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--yellow); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+  .card.done { border-left-color: var(--navy); }
+  .top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+  .title { font-weight: 600; font-size: 1.02rem; }
+  .meta { color: var(--muted); font-size: .86rem; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 16px; margin-top: 8px; font-size: .9rem; }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  .grid span { color: var(--muted); }
+  .owner { display: inline-block; background: var(--navy-soft); color: var(--navy); border-radius: 99px; padding: 1px 10px; font-weight: 600; font-size: .85rem; }
+  .empty { color: var(--muted); background: var(--card); border: 1px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: 90vw; padding: 10px 16px; border-radius: 10px; font-weight: 500; }
+  .toast.ok { background: var(--ok-soft); color: var(--ok); } .toast.err { background: var(--err-soft); color: var(--err); }
+  .err { color: var(--err); min-height: 1.4em; }
+  a { color: var(--navy); font-weight: 600; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="demo">ระบบทดลอง (DEMO แบบ C) — หน้าคิวงานสำหรับทีมงาน · ไม่ใช่ระบบจริง</div>
+
+<div class="login hidden" id="login">
+  <h1>คิวงานรอรับเรื่อง</h1>
+  <p class="who">ใส่ PIN ประจำตัวของคุณ (ใส่ครั้งเดียว เครื่องนี้จะจำไว้)</p>
+  <input id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" aria-label="PIN">
+  <div class="err" id="loginErr"></div>
+  <button class="primary" id="loginBtn">เข้าสู่คิวงาน</button>
+</div>
+
+<div class="wrap hidden" id="app">
+  <header>
+    <div>
+      <h1>คิวงานรอรับเรื่อง</h1>
+      <div class="who" id="me"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="refresh">รีเฟรช</button>
+      <button id="logout">ออกจากระบบ</button>
+    </div>
+  </header>
+  <h2>รอรับเรื่อง <span class="count" id="pendingCount">0</span></h2>
+  <div id="pending"></div>
+  <h2>รับเรื่องแล้ว (ล่าสุด)</h2>
+  <div id="claimed"></div>
+  <p class="meta" id="updated"></p>
+</div>
+<div class="toast hidden" id="toast"></div>
+
+<script>
+var API_URL = "https://script.google.com/macros/s/AKfycbwRXze4N4hz0iUGQ5LWHZnl_6qUu4g24uir_IuWFsVZhMlnFnd9pCTf5E7X-3CIou0n/exec"; // ว่าง = เปิดผ่านลิงก์ Apps Script (google.script.run) · ใส่ URL /exec ถ้าโฮสต์ภายนอก
+(function () {
+  var KEY = 'nexttech-dashboard-pin';
+  var $ = function (s) { return document.querySelector(s); };
+  var pin = '';
+  try { pin = localStorage.getItem(KEY) || ''; } catch (e) {}
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function call(fn, args) {
+    if (!API_URL) return new Promise(function (ok, no) { google.script.run.withSuccessHandler(ok).withFailureHandler(no)[fn].apply(null, args); });
+    return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: fn, args: args }) })
+      .then(function (r) { return r.json(); }).then(function (res) { if (res.error) throw new Error(res.error); return res.result; });
+  }
+  function toast(kind, text) {
+    var t = $('#toast'); t.className = 'toast ' + kind; t.textContent = text;
+    clearTimeout(toast.t); toast.t = setTimeout(function () { t.classList.add('hidden'); }, 4000);
+  }
+  function showLogin(err) {
+    $('#app').classList.add('hidden'); $('#login').classList.remove('hidden');
+    $('#loginErr').textContent = err || ''; $('#pin').value = ''; $('#pin').focus();
+  }
+  function row(label, value) { return value ? '<div><span>' + label + '</span> ' + esc(value) + '</div>' : ''; }
+  function card(x, pending) {
+    return '<div class="card' + (pending ? '' : ' done') + '">' +
+      '<div class="top"><div><div class="title">' + esc(x.eventName) + '</div>' +
+      '<div class="meta">' + esc(x.id) + ' · ส่งเมื่อ ' + esc(x.submittedAt) + '</div></div>' +
+      (pending ? '<button class="primary" data-claim="' + esc(x.id) + '" data-name="' + esc(x.eventName) + '">รับเรื่อง</button>'
+               : '<div style="text-align:right"><span class="owner">' + esc(x.ownerName) + '</span><div class="meta">' + esc(x.claimedAt) + '</div></div>') +
+      '</div><div class="grid">' +
+      row('วันที่จัดงาน', x.eventDate) + row('สถานที่', x.venue) + row('ผู้จัดงาน', x.organizer) + row('ผู้ประสานงาน', x.coordinator) +
+      row('Set up', x.setup) + row('รื้อถอน', x.teardown) + row('ค่าประกัน', x.depositLabel) + row('อีเมลลูกค้า', x.contactEmail) +
+      row('อุปกรณ์', x.equipment) + row('บริการ', x.services) +
+      (x.fileUrl ? '<div><span>ไฟล์</span> <a href="' + esc(x.fileUrl) + '" target="_blank" rel="noopener">เปิดใบแจ้งงาน</a></div>' : '') +
+      '</div></div>';
+  }
+  function render(res) {
+    $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+    $('#me').textContent = 'เข้าใช้งานในชื่อ ' + res.me.name + ' — กด “รับเรื่อง” แล้วชื่อของคุณจะลงในใบแจ้งงาน';
+    $('#pendingCount').textContent = res.pending.length;
+    $('#pending').innerHTML = res.pending.length ? res.pending.map(function (x) { return card(x, true); }).join('')
+      : '<div class="empty">ไม่มีงานรอรับเรื่อง 🎉</div>';
+    $('#claimed').innerHTML = res.claimed.length ? res.claimed.map(function (x) { return card(x, false); }).join('')
+      : '<div class="empty">ยังไม่มีงานที่รับเรื่อง</div>';
+    $('#updated').textContent = 'อัปเดตล่าสุด ' + new Date().toLocaleTimeString('th-TH') + ' · รีเฟรชอัตโนมัติทุก 1 นาที';
+  }
+  function load(quiet) {
+    if (!pin) return showLogin();
+    if (!quiet) $('#refresh').disabled = true;
+    return call('dashboardList', [pin]).then(function (res) { render(res); })
+      .catch(function (e) {
+        var m = e.message || String(e);
+        if (/PIN/.test(m)) { pin = ''; try { localStorage.removeItem(KEY); } catch (x) {} return showLogin(m); }
+        toast('err', 'โหลดคิวงานไม่สำเร็จ: ' + m);
+      }).then(function () { $('#refresh').disabled = false; });
+  }
+  $('#loginBtn').onclick = function () {
+    var v = $('#pin').value.trim();
+    if (!/^\d{4,8}$/.test(v)) return showLogin('กรุณาใส่ PIN เป็นตัวเลข');
+    var btn = this; btn.disabled = true; $('#loginErr').textContent = '';
+    call('dashboardList', [v]).then(function (res) {
+      pin = v; try { localStorage.setItem(KEY, v); } catch (e) {}
+      render(res);
+    }).catch(function (e) { showLogin(e.message || String(e)); }).then(function () { btn.disabled = false; });
+  };
+  $('#pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#loginBtn').click(); });
+  $('#refresh').onclick = function () { load(false); };
+  $('#logout').onclick = function () { pin = ''; try { localStorage.removeItem(KEY); } catch (e) {} showLogin(); };
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-claim]');
+    if (!b) return;
+    if (!confirm('ยืนยันรับเรื่อง “' + b.dataset.name + '” ?\nระบบจะสร้างใบแจ้งงานที่มีชื่อคุณ และส่งให้ลูกค้าทันที')) return;
+    b.disabled = true; b.textContent = 'กำลังสร้างใบแจ้งงาน…';
+    call('dashboardClaim', [pin, b.dataset.claim]).then(function (res) {
+      if (res.ok) toast('ok', 'รับเรื่องเรียบร้อย ส่งใบแจ้งงานให้ลูกค้าแล้ว');
+      else if (res.already) toast('err', 'งานนี้รับเรื่องไปแล้วโดย ' + res.request.ownerName);
+      else toast('err', res.error || 'รับเรื่องไม่สำเร็จ');
+      return load(true);
+    }).catch(function (e) { toast('err', e.message || String(e)); load(true); });
+  });
+  setInterval(function () { if (pin && !document.hidden) load(true); }, 60000);
+  load(false);
+})();
+</script>
+</body>
+</html>
