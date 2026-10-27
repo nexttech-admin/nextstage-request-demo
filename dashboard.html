@@ -78,6 +78,7 @@
     <div style="display:flex;gap:8px">
       <button id="refresh">รีเฟรช</button>
       <button id="changePinBtn">เปลี่ยน PIN</button>
+      <button id="teamPinBtn" class="hidden">จัดการ PIN ทีม</button>
       <button id="logout">ออกจากระบบ</button>
     </div>
   </header>
@@ -90,6 +91,11 @@
       <button id="cancelPin">ยกเลิก</button>
     </div>
     <div class="err" id="pinErr"></div>
+  </div>
+  <div class="panel hidden" id="teamPanel">
+    <div style="font-weight:600">จัดการ PIN ทีม <span class="meta">(เฉพาะผู้ดูแล · ระบบไม่แสดง PIN เดิมของใคร)</span></div>
+    <div id="teamRows" style="display:grid;gap:8px;margin-top:10px"></div>
+    <div class="err" id="teamErr"></div>
   </div>
   <h2>รอรับเรื่อง <span class="count" id="pendingCount">0</span></h2>
   <div id="pending"></div>
@@ -148,6 +154,15 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwRXze4N4hz0iUGQ5LWHZnl_6
   }
   function render(res) {
     ME = res.me; OWNERS = res.owners || [];
+    $('#teamPinBtn').classList.toggle('hidden', !res.me.isPinAdmin);
+    if (!res.me.isPinAdmin) $('#teamPanel').classList.add('hidden');
+    if (res.me.isPinAdmin && !$('#teamRows').children.length) {
+      $('#teamRows').innerHTML = (res.users || []).map(function (u) {
+        return '<div class="assign"><div style="min-width:220px">' + esc(u.name) + '</div>' +
+          '<input inputmode="numeric" maxlength="6" placeholder="PIN ใหม่ 6 หลัก" data-pin-for="' + esc(u.key) + '" aria-label="PIN ใหม่ของ ' + esc(u.name) + '">' +
+          '<button class="primary" data-set-pin="' + esc(u.key) + '" data-name="' + esc(u.name) + '">ตั้ง PIN ใหม่</button></div>';
+      }).join('');
+    }
     var keep = {};  // auto-refresh must not reset a choice someone is making
     document.querySelectorAll('[data-owner-for]').forEach(function (s) { if (s.value) keep[s.dataset.ownerFor] = s.value; });
     $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
@@ -187,6 +202,22 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwRXze4N4hz0iUGQ5LWHZnl_6
   };
   $('#pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#loginBtn').click(); });
   $('#refresh').onclick = function () { load(false); };
+  $('#teamPinBtn').onclick = function () { $('#teamPanel').classList.toggle('hidden'); $('#teamErr').textContent = ''; };
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-set-pin]');
+    if (!b) return;
+    var key = b.dataset.setPin, input = document.querySelector('[data-pin-for="' + key + '"]'), v = input.value.trim();
+    if (!/^\d{6}$/.test(v)) return ($('#teamErr').textContent = 'PIN ใหม่ของ ' + b.dataset.name + ' ต้องเป็นตัวเลข 6 หลัก');
+    if (!confirm('ตั้ง PIN ใหม่ให้ ' + b.dataset.name + ' ?\nPIN เดิมของคนนี้จะใช้ไม่ได้ทันที')) return;
+    b.disabled = true; $('#teamErr').textContent = '';
+    call('dashboardAdminSetPin', [pin, key, v]).then(function (res) {
+      if (!res.ok) { $('#teamErr').textContent = res.error; return; }
+      input.value = '';
+      if (ME && key === ME.key) { pin = v; try { localStorage.setItem(KEY, v); } catch (x) {} }
+      toast('ok', 'ตั้ง PIN ใหม่ให้ ' + res.name + ' เรียบร้อย');
+      load(true);
+    }).catch(function (err) { $('#teamErr').textContent = err.message || String(err); }).then(function () { b.disabled = false; });
+  });
   $('#changePinBtn').onclick = function () { $('#pinPanel').classList.toggle('hidden'); $('#pinErr').textContent = ''; $('#newPin1').focus(); };
   $('#cancelPin').onclick = function () { $('#pinPanel').classList.add('hidden'); $('#newPin1').value = $('#newPin2').value = ''; };
   $('#savePin').onclick = function () {
