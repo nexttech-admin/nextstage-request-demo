@@ -38,6 +38,12 @@
   .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 16px; margin-top: 8px; font-size: .9rem; }
   @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
   .grid span { color: var(--muted); }
+  .assign { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .assign select { font: inherit; padding: 7px 10px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); }
+  .by { color: var(--muted); font-size: .8rem; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+  .panel input { font: 600 1.1rem ui-monospace, Menlo, monospace; letter-spacing: .3em; width: 150px; padding: 8px 10px; border: 1.5px solid var(--line);
+                 border-radius: 10px; background: var(--bg); color: var(--ink); text-align: center; }
   .owner { display: inline-block; background: var(--navy-soft); color: var(--navy); border-radius: 99px; padding: 1px 10px; font-weight: 600; font-size: .85rem; }
   .empty { color: var(--muted); background: var(--card); border: 1px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; }
   .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: 90vw; padding: 10px 16px; border-radius: 10px; font-weight: 500; }
@@ -66,9 +72,20 @@
     </div>
     <div style="display:flex;gap:8px">
       <button id="refresh">รีเฟรช</button>
+      <button id="changePinBtn">เปลี่ยน PIN</button>
       <button id="logout">ออกจากระบบ</button>
     </div>
   </header>
+  <div class="panel hidden" id="pinPanel">
+    <div style="font-weight:600;margin-bottom:6px">ตั้ง PIN ใหม่ (ตัวเลข 6 หลัก)</div>
+    <div class="assign">
+      <input id="newPin1" inputmode="numeric" maxlength="6" placeholder="PIN ใหม่" aria-label="PIN ใหม่">
+      <input id="newPin2" inputmode="numeric" maxlength="6" placeholder="อีกครั้ง" aria-label="ยืนยัน PIN ใหม่">
+      <button class="primary" id="savePin">บันทึก</button>
+      <button id="cancelPin">ยกเลิก</button>
+    </div>
+    <div class="err" id="pinErr"></div>
+  </div>
   <h2>รอรับเรื่อง <span class="count" id="pendingCount">0</span></h2>
   <div id="pending"></div>
   <h2>รับเรื่องแล้ว (ล่าสุด)</h2>
@@ -103,8 +120,10 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwRXze4N4hz0iUGQ5LWHZnl_6
     return '<div class="card' + (pending ? '' : ' done') + '">' +
       '<div class="top"><div><div class="title">' + esc(x.eventName) + '</div>' +
       '<div class="meta">' + esc(x.id) + ' · ส่งเมื่อ ' + esc(x.submittedAt) + '</div></div>' +
-      (pending ? '<button class="primary" data-claim="' + esc(x.id) + '" data-name="' + esc(x.eventName) + '">รับเรื่อง</button>'
-               : '<div style="text-align:right"><span class="owner">' + esc(x.ownerName) + '</span><div class="meta">' + esc(x.claimedAt) + '</div></div>') +
+      (pending ? '<div class="assign"><select aria-label="ผู้รับเรื่อง" data-owner-for="' + esc(x.id) + '">' + ownerOptions() + '</select>' +
+                 '<button class="primary" data-claim="' + esc(x.id) + '" data-name="' + esc(x.eventName) + '">ยืนยันผู้รับเรื่อง</button></div>'
+               : '<div style="text-align:right"><span class="owner">' + esc(x.ownerName) + '</span><div class="meta">' + esc(x.claimedAt) + '</div>' +
+                 (x.assignedBy ? '<div class="by">มอบหมายโดย ' + esc(x.assignedBy) + '</div>' : '') + '</div>') +
       '</div><div class="grid">' +
       row('วันที่จัดงาน', x.eventDate) + row('สถานที่', x.venue) + row('ผู้จัดงาน', x.organizer) + row('ผู้ประสานงาน', x.coordinator) +
       row('Set up', x.setup) + row('รื้อถอน', x.teardown) + row('ค่าประกัน', x.depositLabel) + row('อีเมลลูกค้า', x.contactEmail) +
@@ -112,12 +131,25 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwRXze4N4hz0iUGQ5LWHZnl_6
       (x.fileUrl ? '<div><span>ไฟล์</span> <a href="' + esc(x.fileUrl) + '" target="_blank" rel="noopener">เปิดใบแจ้งงาน</a></div>' : '') +
       '</div></div>';
   }
+  var ME = null, OWNERS = [];
+  function ownerOptions() {
+    var pre = ME && ME.canOwn ? ME.key : '';
+    return (pre ? '' : '<option value="">— เลือกผู้รับเรื่อง —</option>') + OWNERS.map(function (o) {
+      return '<option value="' + esc(o.key) + '"' + (o.key === pre ? ' selected' : '') + '>' + esc(o.name) + '</option>';
+    }).join('');
+  }
   function render(res) {
+    ME = res.me; OWNERS = res.owners || [];
+    var keep = {};  // auto-refresh must not reset a choice someone is making
+    document.querySelectorAll('[data-owner-for]').forEach(function (s) { if (s.value) keep[s.dataset.ownerFor] = s.value; });
     $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-    $('#me').textContent = 'เข้าใช้งานในชื่อ ' + res.me.name + ' — กด “รับเรื่อง” แล้วชื่อของคุณจะลงในใบแจ้งงาน';
+    $('#me').textContent = 'เข้าใช้งานในชื่อ ' + res.me.name + ' — เลือกผู้รับเรื่องแล้วกดยืนยัน ชื่อผู้รับเรื่องจะลงในใบแจ้งงานคู่กับคุณกมลเทพ';
     $('#pendingCount').textContent = res.pending.length;
     $('#pending').innerHTML = res.pending.length ? res.pending.map(function (x) { return card(x, true); }).join('')
       : '<div class="empty">ไม่มีงานรอรับเรื่อง 🎉</div>';
+    Object.keys(keep).forEach(function (id) {
+      var s = document.querySelector('[data-owner-for="' + id + '"]'); if (s) s.value = keep[id];
+    });
     $('#claimed').innerHTML = res.claimed.length ? res.claimed.map(function (x) { return card(x, false); }).join('')
       : '<div class="empty">ยังไม่มีงานที่รับเรื่อง</div>';
     $('#updated').textContent = 'อัปเดตล่าสุด ' + new Date().toLocaleTimeString('th-TH') + ' · รีเฟรชอัตโนมัติทุก 1 นาที';
@@ -143,14 +175,30 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwRXze4N4hz0iUGQ5LWHZnl_6
   };
   $('#pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#loginBtn').click(); });
   $('#refresh').onclick = function () { load(false); };
+  $('#changePinBtn').onclick = function () { $('#pinPanel').classList.toggle('hidden'); $('#pinErr').textContent = ''; $('#newPin1').focus(); };
+  $('#cancelPin').onclick = function () { $('#pinPanel').classList.add('hidden'); $('#newPin1').value = $('#newPin2').value = ''; };
+  $('#savePin').onclick = function () {
+    var a = $('#newPin1').value.trim(), c = $('#newPin2').value.trim();
+    if (!/^\d{6}$/.test(a)) return ($('#pinErr').textContent = 'PIN ใหม่ต้องเป็นตัวเลข 6 หลัก');
+    if (a !== c) return ($('#pinErr').textContent = 'PIN สองช่องไม่ตรงกัน');
+    var btn = this; btn.disabled = true;
+    call('dashboardChangePin', [pin, a]).then(function (res) {
+      if (!res.ok) { $('#pinErr').textContent = res.error; return; }
+      pin = a; try { localStorage.setItem(KEY, a); } catch (e) {}
+      $('#cancelPin').click(); toast('ok', 'เปลี่ยน PIN เรียบร้อย ครั้งหน้าใช้ PIN ใหม่');
+    }).catch(function (e) { $('#pinErr').textContent = e.message || String(e); }).then(function () { btn.disabled = false; });
+  };
   $('#logout').onclick = function () { pin = ''; try { localStorage.removeItem(KEY); } catch (e) {} showLogin(); };
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-claim]');
     if (!b) return;
-    if (!confirm('ยืนยันรับเรื่อง “' + b.dataset.name + '” ?\nระบบจะสร้างใบแจ้งงานที่มีชื่อคุณ และส่งให้ลูกค้าทันที')) return;
+    var sel = document.querySelector('[data-owner-for="' + b.dataset.claim + '"]');
+    if (!sel || !sel.value) return toast('err', 'กรุณาเลือกผู้รับเรื่องก่อน');
+    var ownerName = sel.options[sel.selectedIndex].text;
+    if (!confirm('ให้ ' + ownerName + ' เป็นผู้รับเรื่อง “' + b.dataset.name + '” ?\nระบบจะสร้างใบแจ้งงานและส่งให้ลูกค้าทันที')) return;
     b.disabled = true; b.textContent = 'กำลังสร้างใบแจ้งงาน…';
-    call('dashboardClaim', [pin, b.dataset.claim]).then(function (res) {
-      if (res.ok) toast('ok', 'รับเรื่องเรียบร้อย ส่งใบแจ้งงานให้ลูกค้าแล้ว');
+    call('dashboardClaim', [pin, b.dataset.claim, sel.value]).then(function (res) {
+      if (res.ok) toast('ok', 'มอบหมายให้ ' + ownerName + ' เรียบร้อย ส่งใบแจ้งงานให้ลูกค้าแล้ว');
       else if (res.already) toast('err', 'งานนี้รับเรื่องไปแล้วโดย ' + res.request.ownerName);
       else toast('err', res.error || 'รับเรื่องไม่สำเร็จ');
       return load(true);
