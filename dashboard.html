@@ -124,7 +124,7 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwRXze4N4hz0iUGQ5LWHZnl_6
       (pending ? '<div class="assign"><select aria-label="ผู้รับเรื่อง" data-owner-for="' + esc(x.id) + '">' + ownerOptions() + '</select>' +
                  '<button class="primary" data-claim="' + esc(x.id) + '" data-name="' + esc(x.eventName) + '">ยืนยันผู้รับเรื่อง</button></div>'
                : '<div style="text-align:right"><span class="owner">' + esc(x.ownerName) + '</span><div class="meta">' + esc(x.claimedAt) + '</div>' +
-                 (x.assignedBy ? '<div class="by">มอบหมายโดย ' + esc(x.assignedBy) + '</div>' : '') + '</div>') +
+                 (x.assignedBy ? '<div class="by">รับแจ้งเรื่องโดย ' + esc(x.assignedBy) + '</div>' : '') + '</div>') +
       '</div><div class="grid">' +
       row('วันที่จัดงาน', x.eventDate) + row('สถานที่', x.venue) + row('ผู้จัดงาน', x.organizer) + row('ผู้ประสานงาน', x.coordinator) +
       row('Set up', x.setup) + row('รื้อถอน', x.teardown) + row('ค่าประกัน', x.depositLabel) + row('อีเมลลูกค้า', x.contactEmail) +
@@ -199,7 +199,7 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwRXze4N4hz0iUGQ5LWHZnl_6
     if (!confirm('ให้ ' + ownerName + ' เป็นผู้รับเรื่อง “' + b.dataset.name + '” ?\nระบบจะสร้างใบแจ้งงานและส่งให้ลูกค้าทันที')) return;
     b.disabled = true; b.textContent = 'กำลังสร้างใบแจ้งงาน…';
     call('dashboardClaim', [pin, b.dataset.claim, sel.value]).then(function (res) {
-      if (res.ok) toast('ok', 'มอบหมายให้ ' + ownerName + ' เรียบร้อย ส่งใบแจ้งงานให้ลูกค้าแล้ว');
+      if (res.ok) toast('ok', 'บันทึก ' + ownerName + ' เป็นผู้รับเรื่องเรียบร้อย ส่งใบแจ้งงานให้ลูกค้าแล้ว');
       else if (res.already) toast('err', 'งานนี้รับเรื่องไปแล้วโดย ' + res.request.ownerName);
       else toast('err', res.error || 'รับเรื่องไม่สำเร็จ');
       return load(true);
