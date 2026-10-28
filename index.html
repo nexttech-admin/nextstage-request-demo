@@ -192,7 +192,7 @@
       <h2>ผู้ติดต่อ</h2>
       <div class="grid">
         <label class="f">ชื่อผู้ประสานงาน (ผู้จัดงาน) <span class="req">*</span><input name="coordinatorName" placeholder="ชื่อ-นามสกุล"></label>
-        <label class="f">เบอร์โทรผู้ประสานงาน <span class="req">*</span><input type="tel" name="coordinatorPhone" placeholder="08x xxx xxxx"></label>
+        <label class="f">เบอร์โทรผู้ประสานงาน <span class="req">*</span><input type="tel" name="coordinatorPhone" inputmode="numeric" maxlength="15" placeholder="08xxxxxxxx"></label>
         <div class="f full">ผู้เซ็นกำกับในการแลกบัตรเข้าทำการ <span class="req">*</span>
           <div id="signers" style="margin-top:6px"></div>
           <button type="button" class="link" id="addSigner">+ เพิ่มผู้เซ็นกำกับ</button>
@@ -257,7 +257,7 @@
   <div class="item"><button type="button" class="small rm">ลบ</button>
     <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <label class="f">ชื่อ-นามสกุล<input data-k="name"></label>
-      <label class="f">เบอร์โทร<input type="tel" data-k="phone"></label>
+      <label class="f">เบอร์โทร<input type="tel" data-k="phone" inputmode="numeric" maxlength="15"></label>
     </div>
   </div>
 </template>
@@ -521,6 +521,11 @@ function startForm(BOOT) {
     ['handoverDate', 'handoverTime'].forEach(function (n) { f(n).readOnly = $('#sameHandover').checked; });
     ['returnDate', 'returnTime'].forEach(function (n) { f(n).readOnly = $('#sameReturn').checked; });
   }
+  // phone fields: digits only (typed or pasted)
+  form.addEventListener('input', function (ev) {
+    var el = ev.target;
+    if (el.type === 'tel' && /\D/.test(el.value)) el.value = el.value.replace(/\D/g, '');
+  }, true);
   form.addEventListener('input', function () { syncLinked(); saveDraft(); });
   form.addEventListener('change', function () { syncLinked(); saveDraft(); });
   // new equipment rows follow set-up / teardown dates until edited individually
@@ -576,6 +581,7 @@ function startForm(BOOT) {
     ['signers', 'equipment'].forEach(function (id) { $('#' + id).innerHTML = ''; });
     (d.signers || []).forEach(function (r) { addRow('signers', 'tplSigner', r); });
     (d.equipment || []).forEach(function (r) { addRow('equipment', 'tplEquip', r); });
+    $$('input[type="tel"]').forEach(function (el) { el.value = el.value.replace(/\D/g, ''); }); // drafts saved before digits-only
     syncVenue(); syncLinked();
   }
 
