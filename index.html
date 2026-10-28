@@ -99,7 +99,7 @@
   .lang button { border: 0; border-radius: 999px; padding: 4px 12px; font-size: .85rem; font-weight: 600; background: none; color: var(--muted); }
   .lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
   @media (prefers-color-scheme: dark) { .lang button[aria-pressed="true"] { color: #1d1b24; } }
-  .msg.info { background: var(--accent-soft); color: var(--ink); margin: 14px 0 0; font-size: .9rem; }
+  .msg.info { background: var(--danger-soft); color: var(--danger); font-weight: 500; margin: 14px 0 0; font-size: .9rem; }
 </style>
 </head>
 <body>
@@ -336,10 +336,10 @@ var I18N = {
   'เก็บวันที่': 'Pick-up date', 'เวลาเก็บ': 'Pick-up time',
   'อื่นๆ (ระบุ)': 'Other (specify)', '— เลือกอุปกรณ์ —': '— Select equipment —',
   'จ่ายค่าประกันสถานที่แล้ว': 'Venue deposit paid', 'ยังไม่จ่ายค่าประกันสถานที่': 'Venue deposit not yet paid', 'ยกเว้นค่าประกันสถานที่': 'Venue deposit waived',
-  'บริษัท': 'Company', 'นิติบุคคล': 'Juristic person', 'บุคคลธรรมดา': 'Individual',
+  'บริษัท': 'Company', 'นิติบุคคล': 'Juristic entity', 'บุคคลธรรมดา': 'Individual',
   'SCBX Next Stage ชั้น 4': 'SCBX Next Stage, 4th floor', 'Next Tech Event Space ชั้น 4': 'Next Tech Event Space, 4th floor',
   'โต๊ะ+ผ้าคลุม': 'Table with cover', 'เก้าอี้+ผ้าคลุม': 'Chair with cover', 'เสาคิว': 'Queue stanchion',
-  'เก้าอี้เสริมหน้าเวทีพร้อมผ้าคลุม': 'Extra front-stage chair with cover'
+  'เก้าอี้เสริมหน้าเวทีพร้อมผ้าคลุม': 'Chair with cover (front of stage)'
 };
 var I18N_BACK = {};
 Object.keys(I18N).forEach(function (k) { I18N_BACK[I18N[k]] = k; });
@@ -673,7 +673,7 @@ function startForm(BOOT) {
       '<p>เมื่อเจ้าหน้าที่รับเรื่องแล้ว ระบบจะส่งใบแจ้งงานฉบับสมบูรณ์ไปที่ <b>' + esc(lastData.contactEmail) + '</b></p>',
       '<p>Request no. <b>' + esc(lastId) + '</b></p><p><b>We have received your event request. Our staff will review the documents shortly.</b></p>' +
       '<p>Once your request is accepted, the completed event notification form will be sent to <b>' + esc(lastData.contactEmail) + '</b>.</p>' +
-      '<p style="color:var(--muted)">' + esc(EN_NOTE) + '</p>');
+      '<p style="color:var(--danger);font-weight:500">' + esc(EN_NOTE) + '</p>');
   }
   function setLang(l) {
     LANG = l;
