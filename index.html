@@ -290,7 +290,7 @@ var LANG = (function () {
   try { return localStorage.getItem('nextstage-lang') === 'en' ? 'en' : 'th'; } catch (e) { return 'th'; }
 })();
 function L(th, en) { return LANG === 'en' ? en : th; }
-var EN_NOTE = 'Please note: our emails to you will be in English, but the attached copy of the event notification form will be in Thai, as it is the same official form submitted to the building management and operations teams.';
+var EN_NOTE = 'Please note: automated system emails will be sent in English, but the attached copy of the event notification form will be in Thai, as it is the same official form submitted to the building management and operations teams.';
 // Thai text on the page -> English (static labels, options, placeholders)
 var I18N = {
   'แจ้งจัดงาน SCBX NEXT STAGE': 'SCBX NEXT STAGE Event Request',
